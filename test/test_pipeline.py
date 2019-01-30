@@ -30,6 +30,52 @@ class PDALTest(unittest.TestCase):
             output = f.read().decode('UTF-8')
         return output
 
+class TestDictPipeline(PDALTest):
+#
+    @unittest.skipUnless(os.path.exists(os.path.join(DATADIRECTORY, '1.2-with-color.las')),
+                         "missing test data")
+    def test_construction(self):
+        """Can we construct empty PDAL pipeline"""
+        r = pdal.Pipeline()
+        r.create()
+#
+    def test_add(self):
+        """Can we add file to dictionary pipeline"""
+        fn = os.path.join(DATADIRECTORY, '1.2-with-color.las')
+        r = pdal.Pipeline()
+        r.add_file(fn)
+        r.create()
+#
+    def test_validate(self):
+        """Can we add file to dictionary pipeline"""
+        r = pdal.Pipeline()
+        r.add_file('nofile.las')
+        r.create()
+        with self.assertRaises(RuntimeError):
+            r.validate()
+#
+    def test_execution(self):
+        """Can we construct empty PDAL pipeline"""
+        fn = os.path.join(DATADIRECTORY, '1.2-with-color.las')
+        r = pdal.Pipeline()
+        r.add_file(fn)
+        r.create()
+        r.validate()
+        r.execute()
+        self.assertGreater(len(r.pipeline), 100)
+#
+    def test_bounds_crop(self):
+        """Can we add file to dictionary pipeline"""
+        r = pdal.Pipeline()
+        r.add_file(os.path.join(DATADIRECTORY, '1.2-with-color.las'))
+        r.add_crop(bounds=(635719,849000,636719,850000))
+        r.create()
+        r.validate()
+        r.execute()
+        arrays = r.arrays
+        self.assertEqual(len(arrays), 1)
+        self.assertEqual(len(arrays[0]), 61)
+#
 class TestPipeline(PDALTest):
 #
     @unittest.skipUnless(os.path.exists(os.path.join(DATADIRECTORY, 'sort.json')),

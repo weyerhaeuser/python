@@ -1,47 +1,115 @@
 
 from pdal import libpdalpython
 import numpy as np
+import json
 
 class Pipeline(object):
     """A PDAL pipeline object, defined by JSON. See http://www.pdal.io/pipeline.html for more
     information on how to define one"""
 
-    def __init__(self, json, arrays=None):
+    def __init__(self, json=None, arrays=None):
 
-        if arrays:
-            self.p = libpdalpython.PyPipeline(json, arrays)
+        self._p = None
+
+        if isinstance(json, str):
+            if arrays:
+                self._p = libpdalpython.PyPipeline(json, arrays)
+            else:
+                self._p = libpdalpython.PyPipeline(json)
+            return
+        
+        if isinstance(json, dict):
+            self.p = json
+        elif json is None:
+            self.p = {'pipeline':[]}
+
+    def add_file(self, filename, **kwargs):
+        kwargs['filename'] = filename
+        self.p['pipeline'].append(kwargs)
+
+    def add_filter(self, **kwargs):
+        self.p['pipeline'].append(kwargs)
+
+    def add_crop(self, bounds=None, polygon=None, **kwargs):
+
+        if bounds is None and polygon is None:
+            print('add_clip requires one of bounds or polygon')
+            return
+        crop_item = kwargs
+        crop_item['type'] = 'filters.crop'
+        # add bounds
+        if bounds is not None:
+            l,b,r,t = bounds
+            crop_item['bounds'] = f'([{l},{r}],[{b},{t}])'
+        if polygon is not None:
+            crop_item['polygon'] = polygon
+
+        self.add_filter(**crop_item)
+
+    def create(self):
+        """
+        Method to convert Python Dictionary Pipeline to json and build
+        PDAL Pipeline object.
+        """
+        json_str = json.dumps(self.p)
+        if self.arrays:
+            self._p = libpdalpython.PyPipeline(json_str)
         else:
-            self.p = libpdalpython.PyPipeline(json)
+            self._p = libpdalpython.PyPipeline(json_str, self.arrays)
 
-    def get_metadata(self):
-        return self.p.metadata
-    metadata = property(get_metadata)
+    @property
+    def metadata(self):
+        """
+        PDAL pipeline metadata
+        """
+        if self._p is None:
+            return None
+        else:
+            return self._p.metadata
 
-    def get_schema(self):
-        return self.p.schema
-    schema = property(get_schema)
+    @property
+    def schema(self):
+        if self._p is None:
+            return None
+        else:
+            return self._p.schema
 
-    def get_pipeline(self):
-        return self.p.pipeline
-    pipeline = property(get_pipeline)
+    @property
+    def pipeline(self):
+        if self._p is None:
+            return None
+        else:
+            return self._p.pipeline
 
-    def get_loglevel(self):
-        return self.p.loglevel
+    @property
+    def loglevel(self):
+        if self._p is None:
+            return None
+        else:
+            return self._p.loglevel
+    
+    @loglevel.setter
+    def loglevel(self, v):
+        if self._p is not None:
+            self._p.loglevel = v
 
-    def set_loglevel(self, v):
-        self.p.loglevel = v
-    loglevel = property(get_loglevel, set_loglevel)
+    @property
+    def log(self):
+        if self._p is None:
+            return None
+        else:
+            return self._p.log
 
-    def get_log(self):
-        return self.p.log
-    log = property(get_log)
+    @property
+    def arrays(self):
+        if self._p is None:
+            return None
+        else:
+            return self._p.arrays
 
     def execute(self):
-        return self.p.execute()
+        return self._p.execute()
 
     def validate(self):
-        return self.p.validate()
+        return self._p.validate()
 
-    def get_arrays(self):
-        return self.p.arrays
-    arrays = property(get_arrays)
